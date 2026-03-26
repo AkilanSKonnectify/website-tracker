@@ -114,9 +114,9 @@ async function handleNotification(req, res) {
 
     const eventBody = { event: payload, enrichment };
     const webhookUrls = [
-      //   "https://konnectify-qa.konnectifyapp.co/webhook/1992",
-      //   "https://konnectify-qa.konnectifyapp.co/webhook/1993",
-      //   "https://konnectify-qa.konnectifyapp.co/webhook/2234",
+      "https://konnectify-qa.konnectifyapp.co/webhook/1992",
+      "https://konnectify-qa.konnectifyapp.co/webhook/1993",
+      "https://konnectify-qa.konnectifyapp.co/webhook/2234",
     ];
 
     const results = await Promise.all(
