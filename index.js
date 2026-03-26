@@ -112,8 +112,6 @@ async function handleNotification(req, res) {
       return;
     }
 
-    console.log("Below is payload");
-    console.log(payload);
     if (!payload?.events) {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: false, error: "Events not found" }));
@@ -121,13 +119,13 @@ async function handleNotification(req, res) {
     }
 
     const webhookUrls = [
-      //   "https://konnectify-qa.konnectifyapp.co/webhook/1992",
-      //   "https://konnectify-qa.konnectifyapp.co/webhook/1993",
-      //   "https://konnectify-qa.konnectifyapp.co/webhook/2234",
+      "https://konnectify-qa.konnectifyapp.co/webhook/1992",
+      "https://konnectify-qa.konnectifyapp.co/webhook/1993",
+      "https://konnectify-qa.konnectifyapp.co/webhook/2234",
     ];
 
     let promisedAllEvents = [];
-    for (let event of payload.events) {
+    for (let event of payload?.events) {
       const eventBody = { event, enrichment };
       webhookUrls.forEach((url) =>
         promisedAllEvents.push(
