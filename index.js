@@ -112,6 +112,7 @@ async function handleNotification(req, res) {
       return;
     }
 
+    console.log("Below is payload");
     console.log(payload);
     if (!payload?.event?.events) {
       res.writeHead(500, { "Content-Type": "application/json" });
