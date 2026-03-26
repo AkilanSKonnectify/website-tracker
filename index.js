@@ -112,6 +112,7 @@ async function handleNotification(req, res) {
       return;
     }
 
+    console.log(payload);
     if (!payload?.event?.events) {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: false, error: "Events not found" }));
@@ -137,7 +138,6 @@ async function handleNotification(req, res) {
         ),
       );
     }
-    console.log(promisedAllEvents);
     const results = await Promise.all(promisedAllEvents);
 
     if (res.headersSent) return;
