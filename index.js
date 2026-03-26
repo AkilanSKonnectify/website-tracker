@@ -112,22 +112,33 @@ async function handleNotification(req, res) {
       return;
     }
 
-    const eventBody = { event: payload, enrichment };
+    if (!payload?.event?.events) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: false, error: "Events not found" }));
+      return;
+    }
+
     const webhookUrls = [
-      "https://konnectify-qa.konnectifyapp.co/webhook/1992",
-      "https://konnectify-qa.konnectifyapp.co/webhook/1993",
-      "https://konnectify-qa.konnectifyapp.co/webhook/2234",
+      //   "https://konnectify-qa.konnectifyapp.co/webhook/1992",
+      //   "https://konnectify-qa.konnectifyapp.co/webhook/1993",
+      //   "https://konnectify-qa.konnectifyapp.co/webhook/2234",
     ];
 
-    const results = await Promise.all(
-      webhookUrls.map((url) =>
-        sendToWebhook(url, eventBody).catch((error) => ({
-          url,
-          status: "failed",
-          error: error.message,
-        })),
-      ),
-    );
+    let promisedAllEvents = [];
+    for (let event of payload.event.events) {
+      const eventBody = { event, enrichment };
+      webhookUrls.forEach((url) =>
+        promisedAllEvents.push(
+          sendToWebhook(url, eventBody).catch((error) => ({
+            url,
+            status: "failed",
+            error: error.message,
+          })),
+        ),
+      );
+    }
+    console.log(promisedAllEvents);
+    const results = await Promise.all(promisedAllEvents);
 
     if (res.headersSent) return;
     res.writeHead(200, { "Content-Type": "application/json" });
