@@ -114,7 +114,7 @@ async function handleNotification(req, res) {
 
     console.log("Below is payload");
     console.log(payload);
-    if (!payload?.event?.events) {
+    if (!payload?.events) {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: false, error: "Events not found" }));
       return;
