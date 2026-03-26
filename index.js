@@ -150,6 +150,19 @@ async function handleNotification(req, res) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, X-Forwarded-For, CF-Connecting-IP",
+  );
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    return res.end();
+  }
+
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (url.pathname === "/notification") {
