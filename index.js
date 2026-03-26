@@ -127,7 +127,7 @@ async function handleNotification(req, res) {
     ];
 
     let promisedAllEvents = [];
-    for (let event of payload.event.events) {
+    for (let event of payload.events) {
       const eventBody = { event, enrichment };
       webhookUrls.forEach((url) =>
         promisedAllEvents.push(
