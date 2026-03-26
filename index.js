@@ -1,7 +1,13 @@
+require("dotenv").config();
+
 const http = require("http");
 const { URL } = require("url");
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
+
+// LRU Cache for IP enrichment
+const cache = new Map();
+const MAX_CACHE_SIZE = process.env.MAX_CACHE_SIZE || 1000;
 
 function extractClientIp(headers = {}, fallbackIp) {
   const forwarded = headers["x-forwarded-for"];
@@ -23,8 +29,21 @@ async function enrichIp(ip) {
     return { ip, enriched: null, error: "no-ip" };
   }
 
-  const enrichBase = process.env.IP_ENRICH_BASE_URL || "https://ipapi.co";
-  const target = `${enrichBase}/${encodeURIComponent(ip)}/json`;
+  // Check cache first
+  if (cache.has(ip)) {
+    const data = cache.get(ip);
+    // Move to end (most recently used)
+    cache.delete(ip);
+    cache.set(ip, data);
+    return data;
+  }
+
+  const enrichBase = process.env.IP_ENRICH_BASE_URL;
+  const token = process.env.IPINFO_TOKEN;
+  if (!enrichBase || !token)
+    return { ip, enriched: null, error: "No token or enrich base url in env" };
+
+  const target = `${enrichBase}/${encodeURIComponent(ip)}?token=${token}`;
 
   try {
     const res = await fetch(target, {
@@ -35,7 +54,17 @@ async function enrichIp(ip) {
       throw new Error(`enrich API status ${res.status}`);
     }
     const data = await res.json();
-    return { ip, enriched: data, error: null };
+    const result = { ip, ...data };
+
+    // Cache the result if successful
+    if (cache.size >= MAX_CACHE_SIZE) {
+      // Remove the least recently used (first in map)
+      const firstKey = cache.keys().next().value;
+      cache.delete(firstKey);
+    }
+    cache.set(ip, result);
+
+    return result;
   } catch (error) {
     return { ip, enriched: null, error: error.message };
   }
@@ -77,12 +106,17 @@ async function handleNotification(req, res) {
 
     const clientIp = extractClientIp(req.headers, req.socket.remoteAddress);
     const enrichment = await enrichIp(clientIp);
+    if (enrichment.error) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: false, ...enrichment }));
+      return;
+    }
 
     const eventBody = { event: payload, enrichment };
     const webhookUrls = [
-      "https://konnectify-qa.konnectifyapp.co/webhook/1992",
-      "https://konnectify-qa.konnectifyapp.co/webhook/1993",
-      "https://konnectify-qa.konnectifyapp.co/webhook/2234",
+      //   "https://konnectify-qa.konnectifyapp.co/webhook/1992",
+      //   "https://konnectify-qa.konnectifyapp.co/webhook/1993",
+      //   "https://konnectify-qa.konnectifyapp.co/webhook/2234",
     ];
 
     const results = await Promise.all(
@@ -95,6 +129,7 @@ async function handleNotification(req, res) {
       ),
     );
 
+    if (res.headersSent) return;
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
       JSON.stringify({
@@ -107,6 +142,8 @@ async function handleNotification(req, res) {
   });
 
   req.on("error", (err) => {
+    if (res.headersSent) return;
+
     res.writeHead(500, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Request error", details: err.message }));
   });
@@ -124,6 +161,19 @@ const server = http.createServer(async (req, res) => {
   res.end(JSON.stringify({ error: "Not Found" }));
 });
 
-server.listen(PORT, () => {
-  console.log(`Notification listener running on http://0.0.0.0:${PORT}`);
+process.on("SIGINT", () => {
+  console.log("Shutting down...");
+  server.close(() => {
+    process.exit(0);
+  });
 });
+
+server
+  .listen(PORT, () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  })
+  .on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error("Port already in use");
+    }
+  });
